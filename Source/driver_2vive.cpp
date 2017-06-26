@@ -21,95 +21,100 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 #define WIN32_LEAN_AND_MEAN
-#define NTDDI_VERSION NTDDI_WIN7
 #include "MinHook.inl"
 #include "openvr_driver.h"
-#include <Psapi.h>
 
-//Type definition of the function we want to hook
-typedef uint32_t (*GetStringProp_Type)(vr::ITrackedDeviceServerDriver* thisptr, vr::ETrackedDeviceProperty prop, char *pchValue, uint32_t unBufferSize, vr::ETrackedPropertyError *pError);
+static const char* STR_MANUFACTURERNAME =  "HTC";
+static const char* STR_MODELNUMBER_HMD = "Vive MV HTC LHR-00000000";
+static const char* STR_MODELNUMBER_TRACKINGREFERENCE = "HTC V2-XD/XE LHB-00000000";
+static const char* STR_MODELNUMBER_CONTROLLERLEFT = "Vive Controller MV HTC LHR-00000000";
+static const char* STR_MODELNUMBER_CONTROLLERRIGHT = "Vive Controller MV HTC LHR-00000001";
 
-//A templated function so we can easily define an array for multiple hooks which use the same master functions
-template <size_t idx> static uint32_t GetStringProp_Template(vr::ITrackedDeviceServerDriver* thisptr, vr::ETrackedDeviceProperty prop, char *pchValue, uint32_t unBufferSize, vr::ETrackedPropertyError *pError)
-	{ return GetStringProp_Master(idx, thisptr, prop, pchValue, unBufferSize, pError); }
+typedef vr::ETrackedPropertyError (__thiscall *WritePropertyBatch_Type)(vr::IVRProperties* thisptr, vr::PropertyContainerHandle_t ulContainerHandle, vr::PropertyWrite_t *pBatch, uint32_t unBatchEntryCount);
+WritePropertyBatch_Type Org_WritePropertyBatch;
 
-//We define an array for pointers to the original functions and our overrides
-enum { MANYHOOK_MAXCOUNT = 10 };
-static GetStringProp_Type GetStringProp_Original[MANYHOOK_MAXCOUNT], GetStringProp_Overrides[MANYHOOK_MAXCOUNT] = { 
-	GetStringProp_Template<0>, GetStringProp_Template<1>, GetStringProp_Template<2>, GetStringProp_Template<3>, GetStringProp_Template<4>,
-	GetStringProp_Template<5>, GetStringProp_Template<6>, GetStringProp_Template<7>, GetStringProp_Template<8>, GetStringProp_Template<9>,
+struct HookVirtualFunctions
+{
+	enum { VFTIDX_WRITEPROPERTYBATCH };
+
+	virtual vr::ETrackedPropertyError WritePropertyBatch(vr::PropertyContainerHandle_t ulContainerHandle, vr::PropertyWrite_t *pBatch, uint32_t unBatchEntryCount)
+	{
+		bool bUpdateModelNumber = false;
+		vr::IVRProperties* self = (vr::IVRProperties*)this;
+		for (vr::PropertyWrite_t *it = pBatch, *itEnd = it + unBatchEntryCount; it != itEnd; it++)
+		{
+			if (it->writeType != vr::PropertyWrite_Set) continue;
+			else if (it->prop == vr::Prop_ManufacturerName_String) { it->pvBuffer = (void*)STR_MANUFACTURERNAME; it->unBufferSize = (uint32_t)strlen(STR_MANUFACTURERNAME) + 1; }
+			else if (it->prop == vr::Prop_ModelNumber_String || it->prop == vr::Prop_DeviceClass_Int32 || it->prop == vr::Prop_ControllerRoleHint_Int32) bUpdateModelNumber = true;
+		}
+
+		if (bUpdateModelNumber)
+		{
+			vr::PropertyWrite_t* PropertyModelNumber = NULL;
+			vr::ETrackedDeviceClass DeviceClass = vr::TrackedDeviceClass_Invalid;
+			vr::ETrackedControllerRole ControllerRole = vr::TrackedControllerRole_Invalid;
+			for (vr::PropertyWrite_t *it = pBatch, *itEnd = it + unBatchEntryCount; it != itEnd; it++)
+			{
+				if (it->writeType != vr::PropertyWrite_Set) continue;
+				else if (it->prop == vr::Prop_ModelNumber_String) PropertyModelNumber = it;
+				else if (it->prop == vr::Prop_DeviceClass_Int32) DeviceClass = *(vr::ETrackedDeviceClass*)it->pvBuffer;
+				else if (it->prop == vr::Prop_ControllerRoleHint_Int32) ControllerRole = *(vr::ETrackedControllerRole*)it->pvBuffer;
+			}
+			if (DeviceClass == vr::TrackedDeviceClass_Invalid) DeviceClass = (vr::ETrackedDeviceClass)vr::CVRPropertyHelpers(self).GetInt32Property(ulContainerHandle, vr::Prop_DeviceClass_Int32);
+			if (ControllerRole == vr::TrackedControllerRole_Invalid && DeviceClass == vr::TrackedDeviceClass_Controller) ControllerRole = (vr::ETrackedControllerRole)vr::CVRPropertyHelpers(self).GetInt32Property(ulContainerHandle, vr::Prop_ControllerRoleHint_Int32);
+
+			const char* str = STR_MODELNUMBER_HMD;
+			if      (DeviceClass == vr::TrackedDeviceClass_TrackingReference)                                                   str = STR_MODELNUMBER_TRACKINGREFERENCE;
+			else if (DeviceClass == vr::TrackedDeviceClass_Controller && ControllerRole == vr::TrackedControllerRole_RightHand) str = STR_MODELNUMBER_CONTROLLERRIGHT;
+			else if (DeviceClass == vr::TrackedDeviceClass_Controller)                                                          str = STR_MODELNUMBER_CONTROLLERLEFT;
+
+			if (PropertyModelNumber) { PropertyModelNumber->pvBuffer = (void*)str; PropertyModelNumber->unBufferSize = (uint32_t)strlen(str) + 1; }
+			else
+			{
+				vr::PropertyWrite_t batch;
+				batch.writeType = vr::PropertyWrite_Set;
+				batch.prop = vr::Prop_ModelNumber_String;
+				batch.pvBuffer = (void*)str;
+				batch.unBufferSize = (uint32_t)strlen(str) + 1;
+				batch.unTag = vr::k_unStringPropertyTag;
+				Org_WritePropertyBatch(self, ulContainerHandle, &batch, 1);
+			}
+		}
+		return Org_WritePropertyBatch(self, ulContainerHandle, pBatch, unBatchEntryCount);
+	}
+
+	static void Hook(void* Object, int ObjectVFTIdx, int OurVFTIdx, void** Out_OriginalFunction)
+	{
+		const HookVirtualFunctions DummyHookVirtualFunctions;
+		void *TrackedDeviceAddedFunc = (*(void***)Object)[ObjectVFTIdx], *Our_TrackedDeviceAdded = (*(void***)&DummyHookVirtualFunctions)[OurVFTIdx];
+		MH_STATUS StatusCreate = MH_CreateHook(TrackedDeviceAddedFunc, Our_TrackedDeviceAdded, Out_OriginalFunction);
+		if      (StatusCreate == MH_ERROR_ALREADY_CREATED)       { MessageBoxA(NULL, "MH_CreateHook failed", "PseudoVive Error", 0); }
+		else if (StatusCreate != MH_OK)                          { MessageBoxA(NULL, "MH_CreateHook failed", "PseudoVive Error", 0); }
+		else if (MH_EnableHook(TrackedDeviceAddedFunc) != MH_OK) { MessageBoxA(NULL, "MH_EnableHook failed", "PseudoVive Error", 0); }
+	}
 };
 
-//Our implementation of the function returning the strings we want
-static uint32_t GetStringProp_Master(size_t HookIndex, vr::ITrackedDeviceServerDriver* thisptr, vr::ETrackedDeviceProperty prop, char *pchValue, uint32_t unBufferSize, vr::ETrackedPropertyError *pError)
+struct CServerTrackedDeviceProvider : public vr::IServerTrackedDeviceProvider
 {
-	//Decide what string to return or if to just call the original drivers get string function
-	const char* str = nullptr;
-	vr::ETrackedPropertyError Dummy;
-	if (prop == vr::Prop_ManufacturerName_String) str = "HTC";
-	else if (prop == vr::Prop_ModelNumber_String)
+	virtual vr::EVRInitError Init(vr::IVRDriverContext *pDriverContext)
 	{
-		vr::ETrackedDeviceClass TrackedDeviceClass = (vr::ETrackedDeviceClass)thisptr->GetInt32TrackedDeviceProperty(vr::Prop_DeviceClass_Int32, &Dummy);
-		if      (TrackedDeviceClass == vr::TrackedDeviceClass_HMD) str = "Vive MV HTC LHR-00000000";
-		else if (TrackedDeviceClass == vr::TrackedDeviceClass_TrackingReference) str = "HTC V2-XD/XE LHB-00000000";
-		else if (TrackedDeviceClass == vr::TrackedDeviceClass_Controller)
-		{
-			vr::ETrackedControllerRole TrackedControllerRole = (vr::ETrackedControllerRole)thisptr->GetInt32TrackedDeviceProperty(vr::Prop_ControllerRoleHint_Int32, &Dummy);
-			str = (TrackedControllerRole == vr::TrackedControllerRole_RightHand ? "Vive Controller MV HTC LHR-00000001" : "Vive Controller MV HTC LHR-00000000");
-		}
+		//initialize minhook
+		if (MH_Initialize() != MH_OK) { MessageBoxA(NULL, "MH_Initialize failed", "Oculus Touch Error", 0); return vr::VRInitError_Unknown; }
+
+		VR_INIT_SERVER_DRIVER_CONTEXT(pDriverContext);
+		//We hook the 2nd function in the virtual function table of vr::IVRProperties (WritePropertyBatch)
+		HookVirtualFunctions::Hook(vr::VRPropertiesRaw(), 1, HookVirtualFunctions::VFTIDX_WRITEPROPERTYBATCH, (void**)&Org_WritePropertyBatch);
+		VR_CLEANUP_SERVER_DRIVER_CONTEXT();
+
+		return vr::VRInitError_Unknown; //return error, we don't provide an actual device, we just hook functions
 	}
-	else return GetStringProp_Original[HookIndex](thisptr, prop, pchValue, unBufferSize, pError);
-
-	//Return the string in str if it fits into the given buffer
-	uint32_t len = (uint32_t)strlen(str);
-	if (len + 1 > unBufferSize) { if (pError) *pError = vr::TrackedProp_BufferTooSmall; if (unBufferSize) pchValue[0] = '\0'; }
-	else { if (pError) *pError = vr::TrackedProp_Success; strcpy(pchValue, str); }
-	return len + 1;
-}
-
-static void SetupNewHooks()
-{
-	//Loop through all currently loaded modules
-	DWORD ModulesSize = 0;
-	HMODULE Modules[256];
-	EnumProcessModules(GetCurrentProcess(), Modules, sizeof(Modules), &ModulesSize);
-	for (DWORD i = 0; i < (ModulesSize / sizeof(HMODULE)); i++)
-	{
-		//Get the main driver function HmdDriverFactory from the module if available
-		typedef void* (*HmdDriverFactoryFunc)(const char *pInterfaceName, int *pReturnCode);
-		HmdDriverFactoryFunc HmdDriverFactoryPtr = (HmdDriverFactoryFunc)GetProcAddress(Modules[i], "HmdDriverFactory");
-		if (!HmdDriverFactoryPtr) continue; //no HmdDriverFactory function in this module
-
-		//Get the server tracked device provider from this driver if available
-		int ReturnCode;
-		vr::IServerTrackedDeviceProvider* ServerProvider = (vr::IServerTrackedDeviceProvider*)HmdDriverFactoryPtr(vr::IServerTrackedDeviceProvider_Version, &ReturnCode);
-		if (!ServerProvider) continue; //no ServerTrackedDeviceProvider in this module
-
-		//Loop through all devices this provider offers
-		for (int32_t i = 0, iMax = ServerProvider->GetTrackedDeviceCount(); i < iMax; i++)
-		{
-			vr::ITrackedDeviceServerDriver* Device = ServerProvider->GetTrackedDeviceDriver(i);
-			if (!Device) continue;
-
-			//Get the pointer to the GetStringTrackedDeviceProperty function (its the 11th entry in the virtual function table)
-			//(Would be better to first check if ServerProvider->GetInterfaceVersions() has IServerTrackedDeviceProvider_Version otherwise this might be wrong)
-			GetStringProp_Type GetStringTrackedDevicePropertyFunc = (GetStringProp_Type)(*(void***)Device)[11];
-
-			//Get the index of the next available hook
-			int32_t AvailableHook = -1;
-			for (int32_t h = 0; h < MANYHOOK_MAXCOUNT; h++)
-				if (!GetStringProp_Original[h]) { AvailableHook = h; break; }
-			if (AvailableHook == -1) continue;
-
-			//Create and enable the hook to the function of this device
-			MH_STATUS StatusCreate = MH_CreateHook(GetStringTrackedDevicePropertyFunc, GetStringProp_Overrides[AvailableHook], (void**)&GetStringProp_Original[AvailableHook]);
-			if (StatusCreate == MH_ERROR_ALREADY_CREATED) continue;
-			if (StatusCreate != MH_OK) { MessageBoxA(NULL, "MH_CreateHook for GetStringTrackedDeviceProperty failed", "Oculus Touch Error", 0); continue; }
-			MH_STATUS StatusEnable = MH_EnableHook(GetStringTrackedDevicePropertyFunc);
-			if (StatusEnable != MH_OK) { MessageBoxA(NULL, "MH_EnableHook for GetStringTrackedDeviceProperty failed", "Oculus Touch Error", 0); continue; }
-		}
-	}
-}
+	virtual void Cleanup() { }
+	virtual const char * const * GetInterfaceVersions() { return NULL; }
+	virtual void RunFrame() { }
+	virtual bool ShouldBlockStandbyMode() { return false; }
+	virtual void EnterStandby() { }
+	virtual void LeaveStandby() { }
+};
 
 extern "C" BOOL __stdcall _DllMainCRTStartup(HINSTANCE hinstDLL,DWORD fdwReason,LPVOID lpReserved)
 {
@@ -119,12 +124,18 @@ extern "C" BOOL __stdcall _DllMainCRTStartup(HINSTANCE hinstDLL,DWORD fdwReason,
 		WCHAR modname[MAX_PATH];
 		GetModuleFileNameW(hinstDLL, modname, MAX_PATH);
 		LoadLibraryW(modname);
-
-		//initialize minhook
-		if (MH_Initialize() != MH_OK) { MessageBoxA(NULL, "MH_Initialize failed", "Oculus Touch Error", 0); return FALSE; }
 	}
-
-	//DllMain gets called on a few occasions, every time we check for new hooks we can create
-	SetupNewHooks();
 	return TRUE;
 }
+
+extern "C" __declspec(dllexport) void *HmdDriverFactory(const char *pInterfaceName, int *pReturnCode)
+{
+	//manual string compare to keep number of linked libraries low
+	size_t Len = (pInterfaceName ? strlen(pInterfaceName) : 0), Len2 = strlen(vr::IServerTrackedDeviceProvider_Version);
+	if (Len != Len2) return NULL;
+	for (size_t i = 0; i != Len && i <= Len; i++) if (pInterfaceName[i] != vr::IServerTrackedDeviceProvider_Version[i]) return NULL;
+	static CServerTrackedDeviceProvider Server;
+	return &Server;
+}
+
+extern "C" int _purecall() { return 0; }
