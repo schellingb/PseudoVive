@@ -1,6 +1,6 @@
 /*
   PseudoVive
-  Copyright (C) 2016 Bernhard Schelling
+  Copyright (C) 2016, 2017 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -98,18 +98,18 @@ struct CServerTrackedDeviceProvider : public vr::IServerTrackedDeviceProvider
 {
 	virtual vr::EVRInitError Init(vr::IVRDriverContext *pDriverContext)
 	{
-		//initialize minhook
-		if (MH_Initialize() != MH_OK) { MessageBoxA(NULL, "MH_Initialize failed", "Oculus Touch Error", 0); return vr::VRInitError_Unknown; }
-
 		VR_INIT_SERVER_DRIVER_CONTEXT(pDriverContext);
+
+		//initialize minhook
+		if (MH_Initialize() != MH_OK) { MessageBoxA(NULL, "MH_Initialize failed", "PseudoVive Error", 0); return vr::VRInitError_None; }
+
 		//We hook the 2nd function in the virtual function table of vr::IVRProperties (WritePropertyBatch)
 		HookVirtualFunctions::Hook(vr::VRPropertiesRaw(), 1, HookVirtualFunctions::VFTIDX_WRITEPROPERTYBATCH, (void**)&Org_WritePropertyBatch);
-		VR_CLEANUP_SERVER_DRIVER_CONTEXT();
 
-		return vr::VRInitError_Unknown; //return error, we don't provide an actual device, we just hook functions
+		return vr::VRInitError_None;
 	}
-	virtual void Cleanup() { }
-	virtual const char * const * GetInterfaceVersions() { return NULL; }
+	virtual void Cleanup() { VR_CLEANUP_SERVER_DRIVER_CONTEXT(); }
+	virtual const char * const * GetInterfaceVersions() { static const char * const Versions[] = { vr::ITrackedDeviceServerDriver_Version, NULL }; return Versions; }
 	virtual void RunFrame() { }
 	virtual bool ShouldBlockStandbyMode() { return false; }
 	virtual void EnterStandby() { }
