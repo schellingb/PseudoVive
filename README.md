@@ -15,6 +15,14 @@ This driver for SteamVR/OpenVR forces any loaded device driver to return Vive mo
 
 You can check if the installation was successful by opening the 'Create System Report' window with the SteamVR menu or by right-clicking the SteamVR systray icon. Then under the 'Devices' tab it should list your devices with a different model name.
 
+## Toggle Variation
+
+This repository also includes a variation of the driver inside the '2vive_toggle' folder.
+
+If you extract the '2vive_toggle' folder instead of '2vive' you will have a 'PV' icon next to the SteamVR icon in the windows system icon tray. This 'PV' icon allows you to activate and deactivate PseudoVive at runtime.
+
+Make sure not to extract both '2vive' and '2vive_toggle' into the 'drivers' folder of SteamVR.
+
 ## Notes
 
 SteamVR loads its drivers in alphabetical order so our driver is named in a way that makes sure it is loaded first (with a leading number).
