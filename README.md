@@ -38,4 +38,4 @@ So far it only changes the values for 'ManufacturerName' and 'ModelNumber' which
 
 ## License
 
-PseudoVive is available under the [zlib license](http://www.gzip.org/zlib/zlib_license.html).
+PseudoVive is available under the [zlib license](http://www.gzip.org/zlib/zlib_license.html). 
