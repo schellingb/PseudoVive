@@ -1,5 +1,4 @@
-PseudoVive
-==========
+# PseudoVive
 
 This driver for SteamVR/OpenVR forces any loaded device driver to return Vive model names for HMD and controllers so that any application with an explicit check for it runs regardless of the used VR headset or motion controller.
 
