@@ -1,0 +1,39 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30523.141
+MinimumVisualStudioVersion = 12.0.0.0
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "driver_2vive", "driver_2vive.vcxproj", "{A47C788B-1BDA-4057-87A9-FC35ED711B44}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{96DFF368-9AB4-42BB-A85D-A54D5D4F49F2}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		devices.ini = devices.ini
+		LICENSE = LICENSE
+		README.md = README.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A47C788B-1BDA-4057-87A9-FC35ED711B44}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A47C788B-1BDA-4057-87A9-FC35ED711B44}.Debug|Win32.Build.0 = Debug|Win32
+		{A47C788B-1BDA-4057-87A9-FC35ED711B44}.Debug|x64.ActiveCfg = Debug|x64
+		{A47C788B-1BDA-4057-87A9-FC35ED711B44}.Debug|x64.Build.0 = Debug|x64
+		{A47C788B-1BDA-4057-87A9-FC35ED711B44}.Release|Win32.ActiveCfg = Release|Win32
+		{A47C788B-1BDA-4057-87A9-FC35ED711B44}.Release|Win32.Build.0 = Release|Win32
+		{A47C788B-1BDA-4057-87A9-FC35ED711B44}.Release|x64.ActiveCfg = Release|x64
+		{A47C788B-1BDA-4057-87A9-FC35ED711B44}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1DDD2EBD-EE57-4B29-8758-A79D2F249A5A}
+	EndGlobalSection
+EndGlobal

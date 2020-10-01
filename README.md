@@ -1,25 +1,23 @@
-PseudoVive
-==========
+# PseudoVive
 
 This driver for SteamVR/OpenVR forces any loaded device driver to return Vive model names for HMD and controllers so that any application with an explicit check for it runs regardless of the used VR headset or motion controller.
 
-## Install
+## Installation
 
-1. Download the [archive from here](https://github.com/schellingb/PseudoVive/archive/master.zip).
-
+1. Download the latest version [here](https://github.com/Bluscream/PseudoVive/releases).
+   - If you download the '2vive_toggle' instead of '2vive' you will have a 'PV' icon next to the SteamVR icon in the windows system icon tray. This 'PV' icon allows you to activate and deactivate PseudoVive at runtime.
 2. Right click SteamVR in the Tools or VR section in the Steam library. Click on 'Local Files' and then 'Browse Local Files...'.
-
-3. Extract the '2vive' folder from the PseudoVive master ZIP into the 'drivers' folder of SteamVR.
-
+3. Extract the ZIP you downloaded into the 'drivers' folder of SteamVR.
 4. Restart SteamVR
 
 You can check if the installation was successful by opening the 'Create System Report' window with the SteamVR menu or by right-clicking the SteamVR systray icon. Then under the 'Devices' tab it should list your devices with a different model name.
 
+## Uninstallation
+
+1. Right click SteamVR in the Tools or VR section in the Steam library. Click on 'Local Files' and then 'Browse Local Files...'.
+2. Remove '2vive' and '2vive_toggle' folders from the 'drivers' folder of SteamVR.
+
 ## Toggle Variation
-
-This repository also includes a variation of the driver inside the '2vive_toggle' folder.
-
-If you extract the '2vive_toggle' folder instead of '2vive' you will have a 'PV' icon next to the SteamVR icon in the windows system icon tray. This 'PV' icon allows you to activate and deactivate PseudoVive at runtime.
 
 Make sure not to extract both '2vive' and '2vive_toggle' into the 'drivers' folder of SteamVR.
 
