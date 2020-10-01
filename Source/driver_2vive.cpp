@@ -1,6 +1,6 @@
 /*
   PseudoVive
-  Copyright (C) 2016, 2017 Bernhard Schelling
+  Copyright (C) 2016-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -287,7 +287,15 @@ struct CServerTrackedDeviceProvider : public vr::IServerTrackedDeviceProvider
 	virtual void LeaveStandby() { }
 };
 
-extern "C" BOOL __stdcall _DllMainCRTStartup(HINSTANCE hinstDLL,DWORD fdwReason,LPVOID lpReserved)
+#if _MSC_VER < 1900
+// Older Visual Studio versions were perfectly fine with using _DllMainCRTStartup as the entry point.
+// This avoids linking against the CRT and reduces the output binary size from 110kb to 20kb.
+extern "C" BOOL __stdcall _DllMainCRTStartup(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
+#else
+// Starting with Visual Studio 2015 it now needs to be linked against the Microsoft C runtime.
+// This bloats the output DLL file size to over 500% of what a build with an older linker could produce.
+extern "C" BOOL __stdcall DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
+#endif
 {
 	if (fdwReason == DLL_PROCESS_ATTACH)
 	{
