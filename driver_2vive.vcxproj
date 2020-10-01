@@ -106,11 +106,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemGroup>
     <ClCompile Include="driver_2vive.cpp" />
-    <None Include=".gitignore" />
-    <None Include="devices.ini" />
-    <None Include="LICENSE" />
     <None Include="MinHook.inl" />
     <ClInclude Include="openvr_driver.h" />
-    <None Include="README.md" />
   </ItemGroup>
 </Project>
